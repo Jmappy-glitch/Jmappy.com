@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linux Web Server Hardening & TLS Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --surface2: #181c24;
+    --border: #1e2330;
+    --border2: #2a3040;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --dim: #3a4455;
+    --accent: #38bdf8;
+    --accent2: #818cf8;
+    --green: #4ade80;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --teal: #2dd4bf;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  .hero {
+    padding: 3rem 2rem 2rem;
+    max-width: 860px;
+    margin: 0 auto;
+    border-bottom: 1px solid var(--border);
+  }
+  .hero-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hero-tag::before {
+    content: '';
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .hero h1 {
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    font-weight: 800;
+    line-height: 1.15;
+    margin-bottom: 1rem;
+    color: #fff;
+  }
+  .hero h1 span { color: var(--accent); }
+  .hero-desc {
+    color: var(--muted);
+    font-size: 14px;
+    max-width: 560px;
+    margin-bottom: 1.5rem;
+    font-family: var(--mono);
+  }
+
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .meta-pill {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border2);
+    color: var(--muted);
+  }
+  .meta-pill.hi { border-color: var(--accent); color: var(--accent); }
+
+  /* NAV */
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    max-width: 860px;
+    margin: 1.5rem auto;
+  }
+  .toc-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 0.75rem;
+  }
+  .toc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 4px;
+  }
+  .toc-link {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .toc-link:hover { background: var(--surface2); color: var(--accent); }
+  .toc-link .num { color: var(--dim); font-size: 10px; }
+
+  /* MAIN */
+  .main { max-width: 860px; margin: 0 auto; padding: 0 2rem 4rem; }
+
+  /* PHASE DIVIDERS */
+  .phase-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 2.5rem 0 1.25rem;
+  }
+  .phase-num {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--accent);
+    background: rgba(56,189,248,0.08);
+    border: 1px solid rgba(56,189,248,0.2);
+    border-radius: 4px;
+    padding: 3px 8px;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+  }
+  .phase-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #fff;
+  }
+  .phase-line { flex: 1; height: 1px; background: var(--border); }
+
+  /* STEP CARDS */
+  .step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .step:hover { border-color: var(--border2); }
+  .step.done { border-color: rgba(74,222,128,0.25); }
+  .step.done .step-head { background: rgba(74,222,128,0.04); }
+
+  .step-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    user-select: none;
+  }
+  .step-check {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+    transition: all 0.2s;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .step.done .step-check {
+    background: var(--green);
+    border-color: var(--green);
+    color: #000;
+  }
+  .step-info { flex: 1; }
+  .step-num {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+  .step-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 3px;
+  }
+  .step-sub {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .step-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 5px; }
+  .tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 1px 7px;
+    border-radius: 3px;
+    border: 1px solid var(--border2);
+    color: var(--dim);
+  }
+  .tag.blue { border-color: rgba(56,189,248,0.3); color: var(--accent); }
+  .tag.green { border-color: rgba(74,222,128,0.3); color: var(--green); }
+  .tag.purple { border-color: rgba(129,140,248,0.3); color: var(--accent2); }
+  .tag.amber { border-color: rgba(251,191,36,0.3); color: var(--amber); }
+
+  .step-chevron {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 4px;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+  .step.open .step-chevron { transform: rotate(180deg); }
+
+  .step-body {
+    display: none;
+    padding: 0 1.25rem 1.25rem;
+    border-top: 1px solid var(--border);
+  }
+  .step.open .step-body { display: block; }
+
+  .step-body p {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 0.75rem 0 0.5rem;
+    line-height: 1.65;
+  }
+
+  /* WHY BOX */
+  .why-box {
+    background: rgba(129,140,248,0.06);
+    border: 1px solid rgba(129,140,248,0.15);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin: 0.75rem 0;
+    font-size: 12px;
+    color: #a5b4fc;
+    font-family: var(--mono);
+    line-height: 1.6;
+  }
+  .why-box strong { color: var(--accent2); display: block; margin-bottom: 4px; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+
+  /* WARN BOX */
+  .warn-box {
+    background: rgba(251,191,36,0.06);
+    border: 1px solid rgba(251,191,36,0.2);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin: 0.75rem 0;
+    font-size: 12px;
+    color: #fde68a;
+    font-family: var(--mono);
+    line-height: 1.6;
+  }
+  .warn-box strong { color: var(--amber); display: block; margin-bottom: 4px; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+
+  /* SUCCESS BOX */
+  .ok-box {
+    background: rgba(74,222,128,0.05);
+    border: 1px solid rgba(74,222,128,0.15);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin: 0.75rem 0;
+    font-size: 12px;
+    color: #86efac;
+    font-family: var(--mono);
+    line-height: 1.6;
+  }
+  .ok-box strong { color: var(--green); display: block; margin-bottom: 4px; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+
+  /* CODE BLOCKS */
+  .code-block {
+    background: #0d1117;
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    margin: 0.75rem 0;
+    overflow: hidden;
+  }
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .code-lang {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .copy-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    background: none;
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .copy-btn.copied { color: var(--green); border-color: var(--green); }
+
+  pre {
+    padding: 1rem 1.25rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.75;
+    color: #cdd9e5;
+    white-space: pre;
+  }
+  .cm { color: var(--muted); font-style: italic; }
+  .ck { color: var(--accent2); }
+  .cv { color: var(--accent); }
+  .cs { color: var(--green); }
+  .cw { color: var(--amber); }
+  .cr { color: var(--red); }
+  .ct { color: var(--teal); }
+
+  /* PORTFOLIO NOTE */
+  .portfolio-note {
+    background: rgba(56,189,248,0.05);
+    border: 1px solid rgba(56,189,248,0.15);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 0.75rem 1rem;
+    margin: 0.75rem 0;
+    font-size: 12px;
+    color: #7dd3fc;
+    font-family: var(--mono);
+    line-height: 1.6;
+  }
+  .portfolio-note strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+
+  /* CHECKLIST */
+  .checklist { list-style: none; margin: 0.5rem 0; }
+  .checklist li {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    padding: 3px 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .checklist li::before { content: '→'; color: var(--accent); flex-shrink: 0; }
+
+  /* PROGRESS */
+  .progress-wrap {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgba(10,12,16,0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+    padding: 0.6rem 2rem;
+    max-width: 100%;
+  }
+  .progress-inner { max-width: 860px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
+  .progress-label { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .progress-bar { flex: 1; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; width: 0%; }
+  .progress-pct { font-family: var(--mono); font-size: 11px; color: var(--accent); min-width: 32px; text-align: right; }
+
+  /* FINAL SECTION */
+  .final-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-top: 2rem;
+  }
+  .final-card h2 { font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 1rem; }
+  .final-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+  }
+  .final-item {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+  }
+  .final-item .fi-label { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+  .final-item .fi-val { font-size: 13px; font-weight: 500; color: var(--text); }
+
+  @media (max-width: 600px) {
+    .hero { padding: 2rem 1.25rem 1.5rem; }
+    .main { padding: 0 1.25rem 3rem; }
+    .progress-wrap { padding: 0.6rem 1.25rem; }
+    .toc { margin: 1rem 1.25rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="progress-wrap">
+  <div class="progress-inner">
+    <span class="progress-label">Progress</span>
+    <div class="progress-bar"><div class="progress-fill" id="prog-fill"></div></div>
+    <span class="progress-pct" id="prog-pct">0%</span>
+  </div>
+</div>
+
+<div class="hero">
+  <div class="hero-tag">Portfolio Project 01 — Security Engineering</div>
+  <h1>Linux Web Server<br><span>Hardening & TLS</span></h1>
+  <p class="hero-desc">// Build a production-grade hardened server with HTTPS from scratch.<br>// Every command explained. Every decision documented.</p>
+  <div class="meta-row">
+    <span class="meta-pill hi">~4–6 hours</span>
+    <span class="meta-pill">Ubuntu 22.04 LTS</span>
+    <span class="meta-pill">Nginx</span>
+    <span class="meta-pill">Let's Encrypt</span>
+    <span class="meta-pill">$5/mo VPS</span>
+    <span class="meta-pill">Beginner–Intermediate</span>
+  </div>
+</div>
+
+<div class="toc">
+  <div class="toc-title">// Sections</div>
+  <div class="toc-grid">
+    <a href="#phase1" class="toc-link"><span class="num">01</span> Provision your server</a>
+    <a href="#phase2" class="toc-link"><span class="num">02</span> Secure SSH access</a>
+    <a href="#phase3" class="toc-link"><span class="num">03</span> Firewall setup</a>
+    <a href="#phase4" class="toc-link"><span class="num">04</span> Install Nginx</a>
+    <a href="#phase5" class="toc-link"><span class="num">05</span> Domain & DNS</a>
+    <a href="#phase6" class="toc-link"><span class="num">06</span> Let's Encrypt TLS</a>
+    <a href="#phase7" class="toc-link"><span class="num">07</span> Harden TLS config</a>
+    <a href="#phase8" class="toc-link"><span class="num">08</span> OS hardening</a>
+    <a href="#phase9" class="toc-link"><span class="num">09</span> Verify & test</a>
+    <a href="#phase10" class="toc-link"><span class="num">10</span> Document for portfolio</a>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- ═══════════════════════════════════ PHASE 1 ═══ -->
+<div class="phase-header" id="phase1">
+  <span class="phase-num">PHASE 01</span>
+  <span class="phase-title">Provision your server</span>
+  <div class="phase-line"></div>
+</div>
+
+<div class="step" id="s1">
+  <div class="step-head" onclick="toggle('s1')">
+    <div class="step-check" onclick="check(event,'s1')">✓</div>
+    <div class="step-info">
+      <div class="step-num">STEP 01</div>
+      <div class="step-title">Create a VPS (Virtual Private Server)</div>
+      <div class="step-sub">DigitalOcean, Linode, or AWS free tier</div>
+      <div class="step-tags"><span class="tag blue">Infrastructure</span><span class="tag">~15 min</span></div>
+    </div>
+    <div class="step-chevron">▼</div>
+  </div>
+  <div class="step-body">
+    <div class="why-box"><strong>Why this matters for your portfolio</strong>Every real production system lives on a server like this. Knowing how to spin one up and lock it down is table-stakes for any security engineering role. You're starting where every real deployment starts.</div>
+    <p>Go to <strong>DigitalOcean.com</strong> (cheapest, easiest for beginners — $5/month Droplet). Create an account, then create a new Droplet with these settings:</p>
+    <ul class="checklist">
+      <li>Image: <strong>Ubuntu 22.04 LTS x64</strong> (LTS = Long Term Support — production standard)</li>
+      <li>Size: Basic, Regular, $5/mo (1 GB RAM, 1 CPU — plenty for this project)</li>
+      <li>Authentication: <strong>SSH Key</strong> (NOT password — you'll add your key next)</li>
+      <li>Region: Any — pick closest to you</li>
+      <li>Hostname: something like <code>security-lab-01</code></li>
+    </ul>
+    <p>If you don't have an SSH key yet, generate one on your local machine first:</p>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">bash — run on your LOCAL machine</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="cm"># Generate an SSH key pair (RSA 4096-bit)</span>
+ssh-keygen -t ed25519 -C "your-email@example.com"
+<span class="cm"># When prompted for file location, press Enter (use default)</span>
+<span class="cm"># Set a passphrase — this protects your private key</span>
+
+<span class="cm"># View your PUBLIC key to paste into DigitalOcean</span>
+cat ~/.ssh/id_ed25519.pub</pre>
+    </div>
+    <div class="warn-box"><strong>Security note</strong>You are generating a key PAIR. The .pub file (public key) goes on the server. The private key (id_ed25519) NEVER leaves your machine. This is asymmetric cryptography in action — your first real crypto concept applied.</div>
+    <p>Paste the output of <code>cat ~/.ssh/id_ed25519.pub</code> into DigitalOcean's SSH key field when creating the Droplet. Note the server's IP address when it's created.</p>
+  </div>
+</div>
+
+<div class="step" id="s2">
+  <div class="step-head" onclick="toggle('s2')">
+    <div class="step-check" onclick="check(event,'s2')">✓</div>
+    <div class="step-info">
+      <div class="step-num">STEP 02</div>
+      <div class="step-title">First login & create a non-root user</div>
+      <div class="step-sub">Never operate as root in production</div>
+      <div class="step-tags"><span class="tag blue">Access Control</span><span class="tag">~10 min</span></div>
+    </div>
+    <div class="step-chevron">▼</div>
+  </div>
+  <div class="step-body">
+    <div class="why-box"><strong>Why this matters</strong>Running as root means any bug, misconfiguration, or compromise immediately has full system access. Principle of least privilege — every security framework demands it. This is IAM in practice at the OS level.</div>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">bash — replace YOUR_SERVER_IP with your Droplet IP</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="cm"># Connect to your server as root (first time only)</span>
+ssh root@YOUR_SERVER_IP
+
+<span class="cm"># Update all packages immediately</span>
+apt update && apt upgrade -y
+
+<span class="cm"># Create a new admin user (replace 'secadmin' with your username)</span>
+adduser secadmin
+
+<span class="cm"># Add user to sudo group (so they can run admin commands)</span>
+usermod -aG sudo secadmin
+
+<span class="cm"># Copy root's SSH key to the new user</span>
+rsync --archive --chown=secadmin:secadmin ~/.ssh /home/secadmin
+
+<span class="cm"># Test login as new user (open a NEW terminal tab — don't close this one yet)</span>
+<span class="cm"># ssh secadmin@YOUR_SERVER_IP</span></pre>
+    </div>
+    <div class="ok-box"><strong>Verify before continuing</strong>Open a new terminal and run: <code>ssh secadmin@YOUR_SERVER_IP</code>. If you can log in successfully, you're good. Test sudo works: <code>sudo whoami</code> should return "root". Only then proceed.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ PHASE 2 ═══ -->
+<div class="phase-header" id="phase2">
+  <span class="phase-num">PHASE 02</span>
+  <span class="phase-title">Secure SSH access</span>
+  <div class="phase-line"></div>
+</div>
+
+<div class="step" id="s3">
+  <div class="step-head" onclick="toggle('s3')">
+    <div class="step-check" onclick="check(event,'s3')">✓</div>
+    <div class="step-info">
+      <div class="step-num">STEP 03</div>
+      <div class="step-title">Harden SSH configuration</div>
+      <div class="step-sub">Disable root login, passwords, change port</div>
+      <div class="step-tags"><span class="tag green">Hardening</span><span class="tag blue">Authentication</span><span class="tag">~15 min</span></div>
+    </div>
+    <div class="step-chevron">▼</div>
+  </div>
+  <div class="step-body">
+    <div class="why-box"><strong>Why this matters</strong>SSH is the primary attack surface of any internet-facing server. Within minutes of a server going live, bots are attempting password logins. These settings eliminate entire attack classes: brute-force, credential stuffing, and direct root access.</div>
+    <p>Log in as your new non-root user, then edit the SSH config:</p>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">bash — logged in as secadmin</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="cm"># Open SSH daemon config</span>
+sudo nano /etc/ssh/sshd_config</pre>
+    </div>
+    <p>Find and change these lines (use Ctrl+W to search in nano):</p>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">/etc/ssh/sshd_config — changes to make</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="cm"># Disable root login completely</span>
+<span class="ck">PermitRootLogin</span> <span class="cs">no</span>
+
+<span class="cm"># Disable password authentication (SSH keys only)</span>
+<span class="ck">PasswordAuthentication</span> <span class="cs">no</span>
+
+<span class="cm"># Disable empty passwords</span>
+<span class="ck">PermitEmptyPasswords</span> <span class="cs">no</span>
+
+<span class="cm"># Only allow your user</span>
+<span class="ck">AllowUsers</span> <span class="cs">secadmin</span>
+
+<span class="cm"># Reduce login grace time</span>
+<span class="ck">LoginGraceTime</span> <span class="cs">20</span>
+
+<span class="cm"># Limit auth attempts per connection</span>
+<span class="ck">MaxAuthTries</span> <span class="cs">3</span>
+
+<span class="cm"># Disable X11 forwarding (not needed)</span>
+<span class="ck">X11Forwarding</span> <span class="cs">no</span></pre>
+    </div>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">bash — save and restart SSH</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="cm"># Save: Ctrl+O then Enter. Exit: Ctrl+X</span>
+
+<span class="cm"># Test config is valid BEFORE restarting</span>
+sudo sshd -t
+
+<span class="cm"># If no errors, restart SSH service</span>
+sudo systemctl restart ssh
+
+<span class="cm"># Verify SSH is running</span>
+sudo systemctl status ssh</pre>
+    </div>
+    <div class="warn-box"><strong>Do NOT close your current session</strong>Open a new terminal tab and test login. If it works, you're safe. If locked out, your current session can fix things. Closing before testing = potential lockout.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ PHASE 3 ═══ -->
+<div class="phase-header" id="phase3">
+  <span class="phase-num">PHASE 03</span>
+  <span class="phase-title">Firewall setup</span>
+  <div class="phase-line"></div>
+</div>
+
+<div class="step" id="s4">
+  <div class="step-head" onclick="toggle('s4')">
+    <div class="step-check" onclick="check(event,'s4')">✓</div>
+    <div class="step-info">
+      <div class="step-num">STEP 04</div>
+      <div class="step-title">Configure UFW firewall</div>
+      <div class="step-sub">Allow only SSH, HTTP, HTTPS — block everything else</div>
+      <div class="step-tags"><span class="tag green">Network Security</span><span class="tag">~10 min</span></div>
+    </div>
+    <div class="step-chevron">▼</div>
+  </div>
+  <div class="step-body">
+    <div class="why-box"><strong>Why this matters</strong>Default-deny network policy: block all inbound traffic, then explicitly allow only what's needed. This is the firewall equivalent of zero-trust architecture — every employer will look for this mindset.</div>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="cm"># Default: deny all incoming, allow all outgoing</span>
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+
+<span class="cm"># Allow SSH (CRITICAL — do this before enabling UFW)</span>
+sudo ufw allow ssh
+
+<span class="cm"># Allow HTTP and HTTPS (for your web server)</span>
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+<span class="cm"># Enable the firewall</span>
+sudo ufw enable
+
+<span class="cm"># Verify rules</span>
+sudo ufw status verbose</pre>
+    </div>
+    <div class="ok-box"><strong>Expected output</strong>You should see Status: active, with rules for 22 (SSH), 80 (HTTP), and 443 (HTTPS). Everything else is denied by default.</div>
+    <p>Check what's actually listening on your server — this is how you audit your own attack surface:</p>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">bash — audit open ports</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="cm"># Show all listening ports and which process owns them</span>
+sudo ss -tlnp
+
+<span class="cm"># You should only see: sshd on :22, nothing else yet</span></pre>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ PHASE 4 ═══ -->
+<div class="phase-header" id="phase4">
+  <span class="phase-num">PHASE 04</span>
+  <span class="phase-title">Install & configure Nginx</span>
+  <div class="phase-line"></div>
+</div>
+
+<div class="step" id="s5">
+  <div class="step-head" onclick="toggle('s5')">
+    <div class="step-check" onclick="check(event,'s5')">✓</div>
+    <div class="step-info">
+      <div class="step-num">STEP 05</div>
+      <div class="step-title">Install Nginx and create a basic site</div>
+      <div class="step-sub">Your web server foundation</div>
+      <div class="step-tags"><span class="tag blue">Web Server</span><span class="tag">~15 min</span></div>
+    </div>
+    <div class="step-chevron">▼</div>
+  </div>
+  <div class="step-body">
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="cm"># Install Nginx</span>
+sudo apt install nginx -y
+
+<span class="cm"># Start and enable (auto-start on reboot)</span>
+sudo systemctl start nginx
+sudo systemctl enable nginx
+
+<span class="cm"># Check it's running</span>
+sudo systemctl status nginx
+
+<span class="cm"># Create your site directory</span>
+sudo mkdir -p /var/www/securitylab/html
+
+<span class="cm"># Set ownership to your user</span>
+sudo chown -R $USER:$USER /var/www/securitylab
+
+<span class="cm"># Create a simple index page</span>
+nano /var/www/securitylab/html/index.html</pre>
+    </div>
+    <p>Paste this content for your index.html:</p>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">html</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="ct">&lt;!DOCTYPE html&gt;</span>
+<span class="ct">&lt;html&gt;&lt;head&gt;&lt;title&gt;</span>Security Lab<span class="ct">&lt;/title&gt;&lt;/head&gt;</span>
+<span class="ct">&lt;body&gt;</span>
+  <span class="ct">&lt;h1&gt;</span>Security Engineering Portfolio<span class="ct">&lt;/h1&gt;</span>
+  <span class="ct">&lt;p&gt;</span>Hardened Linux server. TLS A+ rated. Built from scratch.<span class="ct">&lt;/p&gt;</span>
+<span class="ct">&lt;/body&gt;&lt;/html&gt;</span></pre>
+    </div>
+    <p>Create the Nginx server block (virtual host):</p>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="cm"># Create server block config (replace yourdomain.com)</span>
+sudo nano /etc/nginx/sites-available/securitylab</pre>
+    </div>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">nginx config</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="ck">server</span> {
+    <span class="ck">listen</span> <span class="cv">80</span>;
+    <span class="ck">listen</span> <span class="cv">[::]:80</span>;
+    <span class="ck">server_name</span> <span class="cs">yourdomain.com www.yourdomain.com</span>;
+    <span class="ck">root</span> <span class="cs">/var/www/securitylab/html</span>;
+    <span class="ck">index</span> <span class="cs">index.html</span>;
+
+    <span class="ck">location</span> / {
+        <span class="ck">try_files</span> <span class="cv">$uri $uri/ =404</span>;
+    }
+}</pre>
+    </div>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">bash — enable and test</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="cm"># Enable site by symlinking to sites-enabled</span>
+sudo ln -s /etc/nginx/sites-available/securitylab /etc/nginx/sites-enabled/
+
+<span class="cm"># Remove default site</span>
+sudo rm /etc/nginx/sites-enabled/default
+
+<span class="cm"># Test Nginx config syntax</span>
+sudo nginx -t
+
+<span class="cm"># Reload Nginx</span>
+sudo systemctl reload nginx</pre>
+    </div>
+    <p>Visit <code>http://YOUR_SERVER_IP</code> in a browser — you should see your page. HTTP only for now — TLS comes next.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ PHASE 5 ═══ -->
+<div class="phase-header" id="phase5">
+  <span class="phase-num">PHASE 05</span>
+  <span class="phase-title">Domain & DNS</span>
+  <div class="phase-line"></div>
+</div>
+
+<div class="step" id="s6">
+  <div class="step-head" onclick="toggle('s6')">
+    <div class="step-check" onclick="check(event,'s6')">✓</div>
+    <div class="step-info">
+      <div class="step-num">STEP 06</div>
+      <div class="step-title">Point a domain at your server</div>
+      <div class="step-sub">Required for Let's Encrypt (TLS needs a domain)</div>
+      <div class="step-tags"><span class="tag">DNS</span><span class="tag">~20 min</span></div>
+    </div>
+    <div class="step-chevron">▼</div>
+  </div>
+  <div class="step-body">
+    <div class="why-box"><strong>Why a domain is required</strong>Let's Encrypt issues certificates for domain names, not IP addresses. This is by design — the CA verifies you control the domain before trusting you with a certificate. This is the CA trust model your mentor mentioned.</div>
+    <p>Get a cheap domain from Namecheap (~$1–10/year) or use a free subdomain from Afraid.org. Then add these DNS A records:</p>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">DNS records to create</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="cm"># At your domain registrar, create these A records:</span>
+
+<span class="ck">Type</span>   <span class="cv">Name</span>   <span class="cs">Value</span>              <span class="cw">TTL</span>
+<span class="ck">A</span>      <span class="cv">@</span>      <span class="cs">YOUR_SERVER_IP</span>     <span class="cw">3600</span>
+<span class="ck">A</span>      <span class="cv">www</span>    <span class="cs">YOUR_SERVER_IP</span>     <span class="cw">3600</span>
+
+<span class="cm"># @ means the root domain (yourdomain.com)</span>
+<span class="cm"># www means www.yourdomain.com</span></pre>
+    </div>
+    <p>Wait 5–30 minutes for DNS to propagate, then verify:</p>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">bash — verify DNS propagation</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="cm"># Check DNS resolves to your IP</span>
+dig yourdomain.com +short
+
+<span class="cm"># Should return your server IP</span>
+<span class="cm"># Also test:</span>
+curl -I http://yourdomain.com
+<span class="cm"># Should return HTTP 200 from your Nginx server</span></pre>
+    </div>
+    <div class="warn-box"><strong>Don't proceed until DNS works</strong>Let's Encrypt will fail if it can't reach your domain. Confirm <code>dig yourdomain.com</code> returns your server IP before moving on.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ PHASE 6 ═══ -->
+<div class="phase-header" id="phase6">
+  <span class="phase-num">PHASE 06</span>
+  <span class="phase-title">Let's Encrypt TLS Certificate</span>
+  <div class="phase-line"></div>
+</div>
+
+<div class="step" id="s7">
+  <div class="step-head" onclick="toggle('s7')">
+    <div class="step-check" onclick="check(event,'s7')">✓</div>
+    <div class="step-info">
+      <div class="step-num">STEP 07</div>
+      <div class="step-title">Install Certbot and obtain your certificate</div>
+      <div class="step-sub">Free, automated, trusted TLS certificate</div>
+      <div class="step-tags"><span class="tag blue">TLS</span><span class="tag blue">Certificates</span><span class="tag blue">CA</span><span class="tag">~15 min</span></div>
+    </div>
+    <div class="step-chevron">▼</div>
+  </div>
+  <div class="step-body">
+    <div class="why-box"><strong>What's actually happening here</strong>Certbot contacts Let's Encrypt (a public CA). Let's Encrypt challenges your server to prove you control the domain (HTTP-01 challenge — it checks for a specific file at /.well-known/acme-challenge/). If you pass, it issues a signed certificate. This is the ACME protocol — automated certificate issuance. Understanding this is core to the CA knowledge your mentor mentioned.</div>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="cm"># Install Certbot and Nginx plugin</span>
+sudo apt install certbot python3-certbot-nginx -y
+
+<span class="cm"># Obtain certificate (replace with your domain)</span>
+sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
+
+<span class="cm"># Certbot will:</span>
+<span class="cm"># 1. Ask for your email (for renewal reminders)</span>
+<span class="cm"># 2. Ask you to agree to Terms of Service</span>
+<span class="cm"># 3. Perform the domain validation challenge</span>
+<span class="cm"># 4. Issue the certificate</span>
+<span class="cm"># 5. Automatically modify your Nginx config</span>
+<span class="cm"># 6. Ask if you want to redirect HTTP to HTTPS (say YES — option 2)</span></pre>
+    </div>
+    <div class="ok-box"><strong>Success looks like this</strong>Certbot will print "Congratulations! Your certificate and chain have been saved at: /etc/letsencrypt/live/yourdomain.com/". Visit https://yourdomain.com — you should see a padlock in the browser.</div>
+    <p>Inspect your certificate to understand what was actually issued:</p>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">bash — inspect your certificate</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="cm"># List your certificates</span>
+sudo certbot certificates
+
+<span class="cm"># Inspect the actual certificate file (read the fields)</span>
+sudo openssl x509 -in /etc/letsencrypt/live/yourdomain.com/cert.pem \
+  -noout -text | head -50
+
+<span class="cm"># Key fields to understand:</span>
+<span class="cm"># Issuer: Let's Encrypt (the CA that signed it)</span>
+<span class="cm"># Subject: CN=yourdomain.com (what it's for)</span>
+<span class="cm"># Validity: Not Before / Not After (90-day validity)</span>
+<span class="cm"># Subject Alternative Name: lists all covered domains</span>
+<span class="cm"># Public Key Algorithm: shows the key type used</span>
+
+<span class="cm"># See your certificate files</span>
+sudo ls -la /etc/letsencrypt/live/yourdomain.com/
+<span class="cm"># cert.pem      = your certificate</span>
+<span class="cm"># chain.pem     = intermediate CA certificates</span>
+<span class="cm"># fullchain.pem = cert.pem + chain.pem combined</span>
+<span class="cm"># privkey.pem   = YOUR PRIVATE KEY (never share this)</span></pre>
+    </div>
+    <p>Set up auto-renewal (certificates expire in 90 days):</p>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">bash — configure auto-renewal</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="cm"># Test renewal process (dry run — doesn't actually renew)</span>
+sudo certbot renew --dry-run
+
+<span class="cm"># Certbot installs a systemd timer automatically</span>
+<span class="cm"># Verify it's active:</span>
+sudo systemctl status certbot.timer
+
+<span class="cm"># Check the renewal schedule</span>
+sudo systemctl list-timers | grep certbot</pre>
+    </div>
+    <div class="portfolio-note"><strong>Portfolio documentation point</strong>Write this down: "Let's Encrypt uses the ACME protocol with an HTTP-01 challenge to verify domain ownership before issuing a DV (Domain Validated) certificate. The certificate is signed by ISRG Root X1 (Let's Encrypt's root CA). Certificates are valid for 90 days and renewed automatically via a systemd timer. The private key is stored at /etc/letsencrypt/live/ with permissions 700, readable only by root."</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ PHASE 7 ═══ -->
+<div class="phase-header" id="phase7">
+  <span class="phase-num">PHASE 07</span>
+  <span class="phase-title">Harden TLS configuration</span>
+  <div class="phase-line"></div>
+</div>
+
+<div class="step" id="s8">
+  <div class="step-head" onclick="toggle('s8')">
+    <div class="step-check" onclick="check(event,'s8')">✓</div>
+    <div class="step-info">
+      <div class="step-num">STEP 08</div>
+      <div class="step-title">Configure strong cipher suites & security headers</div>
+      <div class="step-sub">Get SSL Labs A+ rating</div>
+      <div class="step-tags"><span class="tag blue">TLS Hardening</span><span class="tag green">Cipher Suites</span><span class="tag purple">HSTS</span></div>
+    </div>
+    <div class="step-chevron">▼</div>
+  </div>
+  <div class="step-body">
+    <div class="why-box"><strong>Why default TLS config is not enough</strong>Certbot gives you a working certificate but doesn't enforce the strongest settings. Old TLS versions (1.0, 1.1) have known vulnerabilities. Weak cipher suites can be exploited. An A+ on SSL Labs proves you understand the difference — this is what separates an engineer from someone who just ran a command.</div>
+    <p>Edit your Nginx config to add hardened TLS settings:</p>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre>sudo nano /etc/nginx/sites-available/securitylab</pre>
+    </div>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">nginx — full hardened config</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="cm"># HTTP → HTTPS redirect (Certbot may add this automatically)</span>
+<span class="ck">server</span> {
+    <span class="ck">listen</span> <span class="cv">80</span>;
+    <span class="ck">server_name</span> <span class="cs">yourdomain.com www.yourdomain.com</span>;
+    <span class="ck">return</span> <span class="cv">301</span> <span class="cs">https://$host$request_uri</span>;
+}
+
+<span class="ck">server</span> {
+    <span class="ck">listen</span> <span class="cv">443 ssl</span>;
+    <span class="ck">listen</span> <span class="cv">[::]:443 ssl</span>;
+    <span class="ck">http2</span> <span class="cs">on</span>;
+    <span class="ck">server_name</span> <span class="cs">yourdomain.com www.yourdomain.com</span>;
+    <span class="ck">root</span> <span class="cs">/var/www/securitylab/html</span>;
+    <span class="ck">index</span> <span class="cs">index.html</span>;
+
+    <span class="cm"># Certificate paths (set by Certbot)</span>
+    <span class="ck">ssl_certificate</span> <span class="cs">/etc/letsencrypt/live/yourdomain.com/fullchain.pem</span>;
+    <span class="ck">ssl_certificate_key</span> <span class="cs">/etc/letsencrypt/live/yourdomain.com/privkey.pem</span>;
+
+    <span class="cm"># Only allow TLS 1.2 and 1.3 (disable old, vulnerable versions)</span>
+    <span class="ck">ssl_protocols</span> <span class="cs">TLSv1.2 TLSv1.3</span>;
+
+    <span class="cm"># Strong cipher suites only</span>
+    <span class="ck">ssl_ciphers</span> <span class="cs">ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256</span>;
+    <span class="ck">ssl_prefer_server_ciphers</span> <span class="cs">off</span>;
+
+    <span class="cm"># Diffie-Hellman parameters for perfect forward secrecy</span>
+    <span class="ck">ssl_dhparam</span> <span class="cs">/etc/nginx/dhparam.pem</span>;
+
+    <span class="cm"># Session caching for performance</span>
+    <span class="ck">ssl_session_timeout</span> <span class="cv">1d</span>;
+    <span class="ck">ssl_session_cache</span> <span class="cs">shared:MozSSL:10m</span>;
+    <span class="ck">ssl_session_tickets</span> <span class="cs">off</span>;
+
+    <span class="cm"># OCSP Stapling (faster cert validation for clients)</span>
+    <span class="ck">ssl_stapling</span> <span class="cs">on</span>;
+    <span class="ck">ssl_stapling_verify</span> <span class="cs">on</span>;
+    <span class="ck">ssl_trusted_certificate</span> <span class="cs">/etc/letsencrypt/live/yourdomain.com/chain.pem</span>;
+    <span class="ck">resolver</span> <span class="cs">8.8.8.8 8.8.4.4</span> <span class="ck">valid</span>=<span class="cv">300s</span>;
+
+    <span class="cm"># Security headers</span>
+    <span class="ck">add_header</span> <span class="cs">Strict-Transport-Security</span> <span class="cs">"max-age=63072000; includeSubDomains; preload"</span> <span class="ck">always</span>;
+    <span class="ck">add_header</span> <span class="cs">X-Frame-Options</span> <span class="cs">DENY</span>;
+    <span class="ck">add_header</span> <span class="cs">X-Content-Type-Options</span> <span class="cs">nosniff</span>;
+    <span class="ck">add_header</span> <span class="cs">X-XSS-Protection</span> <span class="cs">"1; mode=block"</span>;
+    <span class="ck">add_header</span> <span class="cs">Referrer-Policy</span> <span class="cs">"no-referrer-when-downgrade"</span>;
+    <span class="ck">add_header</span> <span class="cs">Content-Security-Policy</span> <span class="cs">"default-src 'self'; script-src 'self'"</span>;
+    <span class="ck">add_header</span> <span class="cs">Permissions-Policy</span> <span class="cs">"geolocation=(), microphone=(), camera=()"</span>;
+
+    <span class="cm"># Hide Nginx version number</span>
+    <span class="ck">server_tokens</span> <span class="cs">off</span>;
+
+    <span class="ck">location</span> / {
+        <span class="ck">try_files</span> <span class="cv">$uri $uri/ =404</span>;
+    }
+}</pre>
+    </div>
+    <p>Generate Diffie-Hellman parameters (this takes a few minutes — the security math is intense):</p>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="cm"># Generate strong DH parameters (3–5 minutes to compute)</span>
+sudo openssl dhparam -out /etc/nginx/dhparam.pem 2048
+
+<span class="cm"># Test config, reload Nginx</span>
+sudo nginx -t && sudo systemctl reload nginx</pre>
+    </div>
+    <div class="why-box"><strong>What each header does — know this for interviews</strong>
+HSTS (Strict-Transport-Security): tells browsers to ONLY use HTTPS for this domain for 2 years, even if user types http://
+X-Frame-Options DENY: prevents clickjacking (your site can't be embedded in iframes)
+X-Content-Type-Options nosniff: stops browsers guessing file types (prevents MIME-type attacks)
+server_tokens off: hides your Nginx version so attackers can't target known vulnerabilities</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ PHASE 8 ═══ -->
+<div class="phase-header" id="phase8">
+  <span class="phase-num">PHASE 08</span>
+  <span class="phase-title">OS-level hardening</span>
+  <div class="phase-line"></div>
+</div>
+
+<div class="step" id="s9">
+  <div class="step-head" onclick="toggle('s9')">
+    <div class="step-check" onclick="check(event,'s9')">✓</div>
+    <div class="step-info">
+      <div class="step-num">STEP 09</div>
+      <div class="step-title">Install Fail2ban & automatic updates</div>
+      <div class="step-sub">Brute-force protection and patch management</div>
+      <div class="step-tags"><span class="tag green">Intrusion Prevention</span><span class="tag amber">Patch Mgmt</span></div>
+    </div>
+    <div class="step-chevron">▼</div>
+  </div>
+  <div class="step-body">
+    <div class="why-box"><strong>Why this matters</strong>Fail2ban watches log files and bans IPs that fail auth too many times. It's detective + preventive control combined. Unattended-upgrades ensures security patches apply automatically — one of the most common real-world vulnerabilities is simply unpatched software.</div>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="cm"># Install Fail2ban</span>
+sudo apt install fail2ban -y
+
+<span class="cm"># Create a local config (override defaults safely)</span>
+sudo cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+sudo nano /etc/fail2ban/jail.local</pre>
+    </div>
+    <p>Find and set these values in jail.local:</p>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">fail2ban jail.local — key settings</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="ck">[DEFAULT]</span>
+<span class="cm"># Ban for 1 hour after 3 failures in 10 minutes</span>
+<span class="ck">bantime</span>  = <span class="cv">3600</span>
+<span class="ck">findtime</span> = <span class="cv">600</span>
+<span class="ck">maxretry</span> = <span class="cv">3</span>
+
+<span class="ck">[sshd]</span>
+<span class="ck">enabled</span> = <span class="cs">true</span>
+<span class="ck">port</span>    = <span class="cs">ssh</span>
+<span class="ck">logpath</span> = <span class="cs">%(sshd_log)s</span>
+<span class="ck">backend</span> = <span class="cs">%(sshd_backend)s</span></pre>
+    </div>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">bash — enable Fail2ban & auto-updates</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="cm"># Start Fail2ban</span>
+sudo systemctl start fail2ban
+sudo systemctl enable fail2ban
+
+<span class="cm"># Check status and active jails</span>
+sudo fail2ban-client status
+sudo fail2ban-client status sshd
+
+<span class="cm"># Install automatic security updates</span>
+sudo apt install unattended-upgrades -y
+sudo dpkg-reconfigure -plow unattended-upgrades
+<span class="cm"># Select YES when prompted</span>
+
+<span class="cm"># Verify it's configured</span>
+cat /etc/apt/apt.conf.d/20auto-upgrades</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ PHASE 9 ═══ -->
+<div class="phase-header" id="phase9">
+  <span class="phase-num">PHASE 09</span>
+  <span class="phase-title">Verify & test everything</span>
+  <div class="phase-line"></div>
+</div>
+
+<div class="step" id="s10">
+  <div class="step-head" onclick="toggle('s10')">
+    <div class="step-check" onclick="check(event,'s10')">✓</div>
+    <div class="step-info">
+      <div class="step-num">STEP 10</div>
+      <div class="step-title">Run your security audit — target SSL Labs A+</div>
+      <div class="step-sub">External verification of everything you built</div>
+      <div class="step-tags"><span class="tag blue">Security Testing</span><span class="tag green">Validation</span></div>
+    </div>
+    <div class="step-chevron">▼</div>
+  </div>
+  <div class="step-body">
+    <div class="portfolio-note"><strong>This is your evidence</strong>Screenshots of your SSL Labs A+ rating and security headers scan are what you paste into your portfolio README and show in interviews. These are industry-standard tools that real security engineers use daily.</div>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">bash — on-server checks</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+      <pre><span class="cm"># Verify TLS connection and cert details</span>
+openssl s_client -connect yourdomain.com:443 -tls1_3
+
+<span class="cm"># Check your security headers</span>
+curl -I https://yourdomain.com
+
+<span class="cm"># Verify cert expiry</span>
+echo | openssl s_client -servername yourdomain.com \
+  -connect yourdomain.com:443 2>/dev/null \
+  | openssl x509 -noout -dates
+
+<span class="cm"># Verify firewall rules are active</span>
+sudo ufw status verbose
+
+<span class="cm"># Check Fail2ban is watching</span>
+sudo fail2ban-client status sshd
+
+<span class="cm"># View auth log — see failed attempts being blocked</span>
+sudo tail -f /var/log/auth.log</pre>
+    </div>
+    <p>Now run these external scans and screenshot the results:</p>
+    <ul class="checklist">
+      <li><strong>SSL Labs:</strong> ssllabs.com/ssltest — enter your domain — target A+</li>
+      <li><strong>Security Headers:</strong> securityheaders.com — enter your domain — target A or A+</li>
+      <li><strong>Mozilla Observatory:</strong> observatory.mozilla.org — security configuration scan</li>
+      <li><strong>Hardenize:</strong> hardenize.com — comprehensive server hardening report</li>
+    </ul>
+    <div class="ok-box"><strong>What A+ on SSL Labs means</strong>Your server only accepts TLS 1.2/1.3, uses strong cipher suites with forward secrecy, has valid OCSP stapling, and sends HSTS headers. This is the same standard Google, Stripe, and AWS use for their public endpoints. You can now demonstrate this.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ PHASE 10 ═══ -->
+<div class="phase-header" id="phase10">
+  <span class="phase-num">PHASE 10</span>
+  <span class="phase-title">Document for your portfolio</span>
+  <div class="phase-line"></div>
+</div>
+
+<div class="step" id="s11">
+  <div class="step-head" onclick="toggle('s11')">
+    <div class="step-check" onclick="check(event,'s11')">✓</div>
+    <div class="step-info">
+      <div class="step-num">STEP 11</div>
+      <div class="step-title">Write your GitHub README & portfolio writeup</div>
+      <div class="step-sub">This turns a project into evidence of expertise</div>
+      <div class="step-tags"><span class="tag green">Portfolio</span><span class="tag green">GitHub</span></div>
+    </div>
+    <div class="step-chevron">▼</div>
+  </div>
+  <div class="step-body">
+    <div class="why-box"><strong>Why documentation matters as much as the build</strong>Anyone can follow a tutorial. Explaining WHY each decision was made, what attack it prevents, and what you'd do differently at Google-scale — that's what security engineers do. This writing is your interview before the interview.</div>
+    <p>Your GitHub repo README should cover these sections:</p>
+    <ul class="checklist">
+      <li><strong>What I built</strong> — hardened Ubuntu 22.04 server running Nginx with TLS</li>
+      <li><strong>Architecture decisions</strong> — why SSH keys only, why non-root user, why UFW default-deny</li>
+      <li><strong>TLS configuration</strong> — what TLS versions are allowed and why, which cipher suites and why, what forward secrecy means and why it matters</li>
+      <li><strong>Certificate chain</strong> — who issued the cert (Let's Encrypt), what the chain of trust looks like (your cert → Let's Encrypt intermediate → ISRG Root X1), how OCSP stapling works</li>
+      <li><strong>Security headers</strong> — explain what each header does and what attack it prevents</li>
+      <li><strong>Evidence</strong> — screenshots of SSL Labs A+, securityheaders.com scan, Fail2ban blocking attempts</li>
+      <li><strong>What I'd do differently at scale</strong> — HSM for key storage, WAF in front, automated cert rotation via Vault, mTLS for internal services, monitoring and alerting on cert expiry</li>
+    </ul>
+    <div class="portfolio-note"><strong>The "at scale" section is what gets Big Tech attention</strong>Saying "at Google scale I'd use a Hardware Security Module (HSM) to store private keys instead of the filesystem, and integrate with Certificate Transparency logs" shows you're already thinking like a senior engineer. That's rare from a junior candidate.</div>
+  </div>
+</div>
+
+<!-- SUMMARY -->
+<div class="final-card">
+  <h2>What you've built & what it proves</h2>
+  <div class="final-grid">
+    <div class="final-item"><div class="fi-label">TLS version</div><div class="fi-val">1.2 + 1.3 only</div></div>
+    <div class="final-item"><div class="fi-label">Certificate authority</div><div class="fi-val">Let's Encrypt (ISRG)</div></div>
+    <div class="final-item"><div class="fi-label">Forward secrecy</div><div class="fi-val">ECDHE key exchange</div></div>
+    <div class="final-item"><div class="fi-label">Auto-renewal</div><div class="fi-val">systemd timer</div></div>
+    <div class="final-item"><div class="fi-label">Brute-force protection</div><div class="fi-val">Fail2ban active</div></div>
+    <div class="final-item"><div class="fi-label">Network policy</div><div class="fi-val">UFW default-deny</div></div>
+    <div class="final-item"><div class="fi-label">Root access</div><div class="fi-val">Disabled</div></div>
+    <div class="final-item"><div class="fi-label">Password login</div><div class="fi-val">Disabled</div></div>
+    <div class="final-item"><div class="fi-label">Target SSL rating</div><div class="fi-val">A+</div></div>
+  </div>
+</div>
+
+</div><!-- end main -->
+
+<script>
+  const TOTAL = 11;
+  function toggle(id) {
+    const el = document.getElementById(id);
+    el.classList.toggle('open');
+  }
+  function check(e, id) {
+    e.stopPropagation();
+    const el = document.getElementById(id);
+    el.classList.toggle('done');
+    updateProgress();
+  }
+  function updateProgress() {
+    const done = document.querySelectorAll('.step.done').length;
+    const pct = Math.round((done / TOTAL) * 100);
+    document.getElementById('prog-fill').style.width = pct + '%';
+    document.getElementById('prog-pct').textContent = pct + '%';
+  }
+  function copyCode(btn) {
+    const pre = btn.closest('.code-block').querySelector('pre');
+    const text = pre.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+  document.getElementById('s1').classList.add('open');
+</script>
+</body>
+</html>
